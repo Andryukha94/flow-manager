@@ -1,0 +1,64 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: flow-manager
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flow_manager
+    username: flow_manager
+    password: 12345
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: flow-manager
+      auto-offset-reset: earliest
+    producer:
+      properties:
+        spring.json.add.type.headers: false
+
+app:
+  kafka:
+    convert-request-topic: file.convert.request
+    convert-result-topic: file.convert.result
+    convert-error-topic: file.convert.result.error
+
+  storage:
+    incomingBucket: incoming
+    outgoingBucket: outgoing
+
+  s3:
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    accessKey: ${S3_ACCESS_KEY:minio}
+    secretKey: ${S3_SECRET_KEY:minio12345}
+    region: ${S3_REGION:us-east-1}
+    forcePathStyle: true
+
+logging:
+  level:
+    root: INFO
+    com.example.flowmanager: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
