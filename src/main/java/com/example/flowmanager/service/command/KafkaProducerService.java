@@ -18,7 +18,7 @@ public class KafkaProducerService {
 
     public void sendConvertRequest(ConvertRequestEvent event) {
         try {
-            kafkaTemplate.send(requestTopic, event.getCorrelationId(), event).get();
+            kafkaTemplate.send(requestTopic, event.correlationId(), event).get();
         } catch (Exception e) {
             throw new FileProcessingException(e);
         }

@@ -1,6 +1,7 @@
 package com.example.flowmanager.service.query;
 
 import com.example.flowmanager.entity.FileEntity;
+import com.example.flowmanager.entity.FileStatus;
 import com.example.flowmanager.exception.FileNotFoundException;
 import com.example.flowmanager.exception.FileProcessingException;
 import com.example.flowmanager.repository.FileRepository;
@@ -22,7 +23,7 @@ public class FileQueryService {
     public byte[] getResultPdfBytes(Long id) {
         FileEntity entity = getById(id);
 
-        if (!FileEntity.STATUS_SUCCESS.equals(entity.getStatus())) {
+        if (entity.getStatus() != FileStatus.SUCCESS) {
             throw new FileProcessingException();
         }
 

@@ -1,12 +1,12 @@
 package com.example.flowmanager.controller;
 
+import com.example.flowmanager.dto.response.FileStatusResponse;
+import com.example.flowmanager.dto.response.UploadResponse;
 import com.example.flowmanager.entity.FileEntity;
-import com.example.flowmanager.exception.BadRequestException;
 import com.example.flowmanager.mapper.FileMapper;
 import com.example.flowmanager.service.command.FileCommandService;
 import com.example.flowmanager.service.query.FileQueryService;
-import com.example.flowmanager.dto.response.FileStatusResponse;
-import com.example.flowmanager.dto.response.UploadResponse;
+import com.example.flowmanager.service.validation.FileUploadValidator;
 import com.example.flowmanager.util.FileUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -23,23 +23,22 @@ public class FileController {
     private final FileCommandService commandService;
     private final FileQueryService queryService;
     private final FileMapper mapper;
+    private final FileUploadValidator validator;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UploadResponse upload(@RequestPart("file") MultipartFile file) {
 
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException();
-        }
-
-        String originalName = file.getOriginalFilename();
-        if (originalName == null || originalName.isBlank()) {
-            throw new BadRequestException();
-        }
+        validator.validate(file);
 
         byte[] bytes = FileUtils.toBytes(file);
         String contentType = FileUtils.contentTypeOrDefault(file);
 
-        FileEntity entity = commandService.uploadAndSend(bytes, originalName, contentType);
+        FileEntity entity = commandService.uploadAndSend(
+                bytes,
+                file.getOriginalFilename(),
+                contentType
+        );
+
         return mapper.toUploadResponse(entity);
     }
 

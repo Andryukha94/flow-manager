@@ -3,12 +3,12 @@ package com.example.flowmanager.service.command;
 import com.example.flowmanager.dto.event.ConvertRequestEvent;
 import com.example.flowmanager.dto.event.ConvertResultEvent;
 import com.example.flowmanager.entity.FileEntity;
+import com.example.flowmanager.entity.FileStatus;
 import com.example.flowmanager.exception.FileNotFoundException;
 import com.example.flowmanager.exception.FileProcessingException;
 import com.example.flowmanager.exception.MinioUnavailableException;
 import com.example.flowmanager.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,18 +31,18 @@ public class FileCommandService {
             entity = FileEntity.builder()
                     .originalBucket(minioStorageService.getIncomingBucket())
                     .originalKey(objectKey)
-                    .status(FileEntity.STATUS_PROCESSING)
+                    .status(FileStatus.PROCESSING)
                     .build();
 
             entity = repo.save(entity);
 
             minioStorageService.uploadIncoming(objectKey, bytes, contentType);
 
-            ConvertRequestEvent event = ConvertRequestEvent.builder()
-                    .correlationId(String.valueOf(entity.getId()))
-                    .bucket(entity.getOriginalBucket())
-                    .objectKey(entity.getOriginalKey())
-                    .build();
+            ConvertRequestEvent event = new ConvertRequestEvent(
+                    String.valueOf(entity.getId()),
+                    entity.getOriginalBucket(),
+                    entity.getOriginalKey()
+            );
 
             kafkaProducerService.sendConvertRequest(event);
 
@@ -53,28 +53,19 @@ public class FileCommandService {
 
         } catch (Exception e) {
             if (entity != null && entity.getId() != null) {
-                entity.setStatus(FileEntity.STATUS_FAILED);
+                entity.setStatus(FileStatus.FAILED);
+                entity.setError(e.getClass().getSimpleName());
                 repo.save(entity);
             }
-            throw (e instanceof FileProcessingException) ? (FileProcessingException) e : new FileProcessingException(e);
+
+            throw (e instanceof FileProcessingException)
+                    ? (FileProcessingException) e
+                    : new FileProcessingException(e);
         }
     }
 
-    @KafkaListener(
-            topics = "${app.kafka.convert-result-topic}",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
     @Transactional
-    public void onConvertSuccess(ConvertResultEvent event) {
-        applyResult(event);
-    }
-
-    @KafkaListener(
-            topics = "${app.kafka.convert-error-topic}",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    @Transactional
-    public void onConvertError(ConvertResultEvent event) {
+    public void handleConvertResult(ConvertResultEvent event) {
         applyResult(event);
     }
 
@@ -84,18 +75,18 @@ public class FileCommandService {
         FileEntity entity = repo.findById(id)
                 .orElseThrow(FileNotFoundException::new);
 
-        if (FileEntity.STATUS_SUCCESS.equals(entity.getStatus())
-                || FileEntity.STATUS_FAILED.equals(entity.getStatus())) {
+        FileStatus current = entity.getStatus();
+        if (current == FileStatus.SUCCESS || current == FileStatus.FAILED) {
             return;
         }
 
         if (ConvertResultEvent.STATUS_SUCCESS.equals(event.getStatus())) {
-            entity.setStatus(FileEntity.STATUS_SUCCESS);
+            entity.setStatus(FileStatus.SUCCESS);
             entity.setResultBucket(event.getBucket());
             entity.setResultKey(event.getObjectKey());
             entity.setError(null);
         } else {
-            entity.setStatus(FileEntity.STATUS_FAILED);
+            entity.setStatus(FileStatus.FAILED);
             entity.setError(event.getError());
         }
 
