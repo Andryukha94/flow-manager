@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-file-entity
+      author: flow-manager
+      changes:
+        - createTable:
+            tableName: files
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: original_bucket
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: original_key
+                  type: VARCHAR(1024)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: result_bucket
+                  type: VARCHAR(255)
+
+              - column:
+                  name: result_key
+                  type: VARCHAR(1024)
+
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: error
+                  type: VARCHAR(255)
+
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: files
+            indexName: idx_files_status
+            columns:
+              - column:
+                  name: status

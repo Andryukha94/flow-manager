@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fm-postgres
+    environment:
+      POSTGRES_DB: flow_manager
+      POSTGRES_USER: flow_manager
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow_manager -d flow_manager"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - shared-net
+
+  fm-redis:
+    image: redis:7-alpine
+    container_name: fm-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - shared-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: keycloak
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    ports:
+      - "8090:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - shared-net
+
+  flow-manager:
+    build: .
+    container_name: flow-manager
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      fm-redis:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flow_manager
+      SPRING_DATASOURCE_USERNAME: flow_manager
+      SPRING_DATASOURCE_PASSWORD: 12345
+
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8090/realms/flow
+
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: pdf-kafka:29092
+      SPRING_DATA_REDIS_HOST: fm-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SUBSCRIPTION_BASE_URL: http://host.docker.internal:8092
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    networks:
+      - shared-net
+
+volumes:
+  keycloak_data:
+
+networks:
+  shared-net:
+    external: true

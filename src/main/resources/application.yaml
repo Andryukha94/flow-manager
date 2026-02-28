@@ -1,0 +1,96 @@
+server:
+  port: 8081
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: flow-manager
+
+  servlet:
+    multipart:
+      max-file-size: 600MB
+      max-request-size: 600MB
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8090/realms/flow
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flow_manager
+    username: flow_manager
+    password: 12345
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: flow-manager
+      auto-offset-reset: earliest
+    producer:
+      properties:
+        spring.json.add.type.headers: false
+
+  cache:
+    type: redis
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+app:
+  kafka:
+    convert-request-topic: file.convert.request
+    convert-result-topic: file.convert.result
+    convert-error-topic: file.convert.result.error
+    subscription-invalidate-topic: subscription.invalidate
+    subscription-invalidate-group-id: flow-manager-subscription
+
+  storage:
+    incomingBucket: incoming
+    outgoingBucket: outgoing
+
+  s3:
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    accessKey: ${S3_ACCESS_KEY:minio}
+    secretKey: ${S3_SECRET_KEY:minio12345}
+    region: ${S3_REGION:us-east-1}
+    forcePathStyle: true
+
+  subscription:
+    base-url: ${SUBS_BASE_URL:http://localhost:8092}
+    cache-ttl-minutes: 30
+
+  upload:
+    free-max-bytes: 104857600
+    paid-max-bytes: 524288000
+
+  security:
+    user-login-header: X-User-Login
+
+logging:
+  level:
+    root: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
