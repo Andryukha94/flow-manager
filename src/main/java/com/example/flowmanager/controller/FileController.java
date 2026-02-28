@@ -17,8 +17,11 @@ public class FileController {
     private final FileApiService fileApiService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public UploadResponse upload(@RequestPart("file") MultipartFile file) {
-        return fileApiService.upload(file);
+    public UploadResponse upload(
+            @RequestPart("file") MultipartFile file,
+            @RequestHeader("X-User-Login") String login
+    ) {
+        return fileApiService.upload(file, login);
     }
 
     @GetMapping("/{id}/status")

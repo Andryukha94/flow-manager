@@ -21,4 +21,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MinioUnavailableException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     void minioUnavailable() {}
+
+    @ExceptionHandler(FileTooLargeException.class)
+    @ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
+    void fileTooLarge() {}
 }

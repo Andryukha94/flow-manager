@@ -1,6 +1,9 @@
 package com.example.flowmanager.config;
 
 import com.example.flowmanager.dto.event.ConvertResultEvent;
+import com.example.flowmanager.properties.AppKafkaProperties;
+import lombok.RequiredArgsConstructor;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -17,7 +20,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@RequiredArgsConstructor
 public class KafkaConfig {
+
+    private final AppKafkaProperties appKafkaProperties;
 
     @Bean
     public ConsumerFactory<String, ConvertResultEvent> resultConsumerFactory(KafkaProperties props) {
@@ -55,5 +61,38 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<Object, Object> kafkaTemplate(ProducerFactory<Object, Object> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
+    }
+
+    @Bean
+    public ConsumerFactory<String, String> subscriptionInvalidateConsumerFactory(
+            KafkaProperties props
+    ) {
+        Map<String, Object> cfg = new HashMap<>(props.buildConsumerProperties());
+
+        cfg.put(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                appKafkaProperties.subscriptionInvalidateGroupId()
+        );
+
+        return new DefaultKafkaConsumerFactory<>(
+                cfg,
+                new StringDeserializer(),
+                new StringDeserializer()
+        );
+    }
+
+    @Bean(name = "subscriptionInvalidateKafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> subscriptionInvalidateKafkaListenerContainerFactory(
+            ConsumerFactory<String, String> subscriptionInvalidateConsumerFactory,
+            DefaultErrorHandler kafkaErrorHandler
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+
+        factory.setConsumerFactory(subscriptionInvalidateConsumerFactory);
+        factory.setCommonErrorHandler(kafkaErrorHandler);
+        factory.setConcurrency(1);
+
+        return factory;
     }
 }

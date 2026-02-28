@@ -16,12 +16,42 @@ services:
     networks:
       - shared-net
 
+  fm-redis:
+    image: redis:7-alpine
+    container_name: fm-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - shared-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: keycloak
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    ports:
+      - "8090:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - shared-net
+
   flow-manager:
     build: .
     container_name: flow-manager
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_started
+      fm-redis:
+        condition: service_started
     ports:
       - "8081:8081"
     environment:
@@ -29,14 +59,21 @@ services:
       SPRING_DATASOURCE_USERNAME: flow_manager
       SPRING_DATASOURCE_PASSWORD: 12345
 
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: pdf-kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8090/realms/flow
 
-      S3_ENDPOINT: http://pdf-minio:9000
-      S3_ACCESS_KEY: minio
-      S3_SECRET_KEY: minio12345
-      S3_REGION: us-east-1
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: pdf-kafka:29092
+      SPRING_DATA_REDIS_HOST: fm-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SUBSCRIPTION_BASE_URL: http://host.docker.internal:8092
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - shared-net
+
+volumes:
+  keycloak_data:
 
 networks:
   shared-net:

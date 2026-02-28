@@ -7,6 +7,7 @@ import com.example.flowmanager.mapper.FileMapper;
 import com.example.flowmanager.service.command.FileCommandService;
 import com.example.flowmanager.service.query.FileQueryService;
 import com.example.flowmanager.service.validation.FileUploadValidator;
+import com.example.flowmanager.util.FileUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,13 +24,16 @@ public class FileApiService {
     private final FileQueryService queryService;
     private final FileMapper mapper;
 
-    public UploadResponse upload(MultipartFile file) {
-        validator.validate(file);
+    public UploadResponse upload(MultipartFile file, String login) {
 
-        byte[] bytes = com.example.flowmanager.util.FileUtils.toBytes(file);
-        String contentType = com.example.flowmanager.util.FileUtils.contentTypeOrDefault(file);
+        validator.validate(file, login);
 
-        FileEntity entity = commandService.uploadAndSend(bytes, file.getOriginalFilename(), contentType);
+        byte[] bytes = FileUtils.toBytes(file);
+        String contentType = FileUtils.contentTypeOrDefault(file);
+
+        FileEntity entity =
+                commandService.uploadAndSend(bytes, file.getOriginalFilename(), contentType);
+
         return mapper.toUploadResponse(entity);
     }
 
